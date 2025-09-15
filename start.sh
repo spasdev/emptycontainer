@@ -4,7 +4,7 @@
 sleep 3
 
 # Bring the Tailscale interface up
-/app/tailscale up --authkey=${TAILSCALE_AUTHKEY} --hostname=cloudrun-app --accept-routes=true
+/app/tailscale up --authkey=${TAILSCALE_AUTHKEY} --hostname=cloudrun-app --accept-routes
 echo "Tailscale started"
 sleep 3
 
