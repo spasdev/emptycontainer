@@ -1,30 +1,29 @@
+# 1. Start with a lightweight Python image based on Alpine Linux
+FROM python:3.11-alpine
 
-
-# Use an official lightweight Python image
-FROM python:3.11-slim
-
-# Set the working directory in the container
+# 2. Set the working directory
 WORKDIR /app
 
-# Copy the dependencies file and install them
-# This is done in a separate step to leverage Docker's build cache
+# 3. Install system dependencies like ca-certificates [cite: 3]
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+
+# 4. Copy and install Python dependencies [cite: 1]
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
-COPY . .
+# 5. Copy your application code and the updated start.sh script
+COPY main.py .
+COPY start.sh .
 
-
-FROM alpine:latest
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
-
-# Copy binary to production image.
-COPY --from=builder start.sh start.sh
-
-# Copy Tailscale binaries from the tailscale image on Docker Hub.
+# 6. Copy Tailscale binaries from the official image [cite: 5]
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /app/tailscaled
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /app/tailscale
+
+# 7. Create directories needed for Tailscale state
 RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
 
-# CMD gunicorn --bind 0.0.0.0:$PORT main:app
+# 8. Make the startup script executable
+RUN chmod +x /app/start.sh
+
+# 9. Set the container's startup command
 CMD ["/app/start.sh"]
