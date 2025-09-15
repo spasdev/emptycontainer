@@ -5,7 +5,7 @@ from flask import Flask, render_template_string, redirect, url_for, flash
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Updated HTML template with two buttons for the new functions
+# Updated HTML template with the new debug button
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -21,6 +21,8 @@ HTML_TEMPLATE = """
         button:hover { background-color: #0056b3; }
         button.secondary { background-color: #6c757d; }
         button.secondary:hover { background-color: #5a6268; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
         pre { background-color: #eee; text-align: left; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; max-width: 800px; margin: auto;}
         .message { margin-top: 20px; }
     </style>
@@ -35,6 +37,9 @@ HTML_TEMPLATE = """
             </form>
             <form action="/netinfo" method="post">
                 <button type="submit" class="secondary">Show Network Config</button>
+            </form>
+            <form action="/debug" method="post">
+                <button type="submit" class="danger">Run Debug Evaluation</button>
             </form>
         </div>
         
@@ -59,9 +64,9 @@ def run_command(command):
             command,
             capture_output=True,
             text=True,
-            timeout=30  # Increased timeout for potentially long commands
+            timeout=30
         )
-        return result.stdout + result.stderr
+        return result.stdout.strip() + "\n" + result.stderr.strip()
     except subprocess.TimeoutExpired:
         return f"⌛️ Command '{' '.join(command)}' timed out."
     except Exception as e:
@@ -88,11 +93,47 @@ def network_info():
     
     full_output = (
         "===== IP Addresses =====\n"
-        f"{ip_addr_output}\n"
+        f"{ip_addr_output}\n\n"
         "===== Routing Table =====\n"
         f"{ip_route_output}"
     )
     flash(full_output)
+    return redirect(url_for('index'))
+
+@app.route("/debug", methods=["POST"])
+def debug_evaluation():
+    """Runs a series of checks to debug Tailscale routing."""
+    report = ["### Tailscale Debug Evaluation ###\n"]
+
+    # 1. Check for the ALL_PROXY environment variable
+    proxy_var = os.getenv('ALL_PROXY', 'NOT SET')
+    report.append(f"===== 1. Environment Variable Check =====\nALL_PROXY={proxy_var}\n")
+
+    # 2. Check Tailscale status
+    ts_status = run_command(["/app/tailscale", "status"])
+    report.append(f"===== 2. Tailscale Status =====\n{ts_status}\n")
+
+    # 3. Check for the SOCKS5 listener
+    listener_check = run_command(["ss", "-lntp"])
+    report.append(f"===== 3. SOCKS5 Listener (ss -lntp) =====\n{listener_check}\n")
+
+    # 4. Get public IP through the Tailscale proxy
+    proxied_ip = run_command(["curl", "--socks5", "localhost:1055", "ifconfig.me"])
+    report.append(f"===== 4. Public IP (via Tailscale SOCKS5) =====\n{proxied_ip}\n")
+
+    # 5. Get public IP without the proxy
+    direct_ip = run_command(["curl", "ifconfig.me"])
+    report.append(f"===== 5. Public IP (direct connection) =====\n{direct_ip}\n")
+    
+    # 6. Conclusion
+    conclusion = "CONCLUSION: "
+    if proxied_ip and direct_ip and proxied_ip != direct_ip:
+        conclusion += "✅ Traffic appears to be routed correctly through Tailscale. The proxied and direct IPs are different."
+    else:
+        conclusion += "❌ Traffic is likely NOT routed through Tailscale. The proxied and direct IPs are the same or an error occurred."
+    report.append(f"===== 6. Conclusion =====\n{conclusion}")
+
+    flash("\n".join(report))
     return redirect(url_for('index'))
 
 
