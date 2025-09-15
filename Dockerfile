@@ -4,8 +4,8 @@ FROM python:3.11-alpine
 # 2. Set the working directory
 WORKDIR /app
 
-# 3. Install system dependencies including curl for debugging
-RUN apk update && apk add --no-cache ca-certificates traceroute iproute2 curl
+# 3. Install system dependencies (traceroute is no longer needed)
+RUN apk update && apk add --no-cache ca-certificates iproute2 curl
 
 # 4. Copy and install Python dependencies
 COPY requirements.txt requirements.txt

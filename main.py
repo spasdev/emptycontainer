@@ -1,11 +1,12 @@
 import os
 import subprocess
+import socket
 from flask import Flask, render_template_string, redirect, url_for, flash
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Updated HTML template with the new debug button
+# Updated HTML template with the new reachability test button
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -32,8 +33,8 @@ HTML_TEMPLATE = """
         <h1>Network Diagnostic Tools 🛠️</h1>
         <p>Run network tools inside the container.</p>
         <div class="buttons">
-            <form action="/traceroute" method="post">
-                <button type="submit">Traceroute to 192.168.1.66</button>
+            <form action="/reachability-test" method="post">
+                <button type="submit">Test App Reachability to 192.168.1.66</button>
             </form>
             <form action="/netinfo" method="post">
                 <button type="submit" class="secondary">Show Network Config</button>
@@ -77,12 +78,29 @@ def index():
     """Renders the main page with the buttons."""
     return render_template_string(HTML_TEMPLATE)
 
-@app.route("/traceroute", methods=["POST"])
-def traceroute_host():
-    """Handles the traceroute button press."""
-    ip_address = "192.168.1.66"
-    output = run_command(["traceroute", ip_address])
-    flash(f"🔍 Traceroute results for {ip_address}:\n\n{output}")
+@app.route("/reachability-test", methods=["POST"])
+def reachability_test():
+    """Attempts a TCP connection from the app to a target host and port."""
+    host = "192.168.1.66"
+    port = 80  # We test a standard web server port. Change if the target service uses a different port.
+    timeout = 5
+
+    try:
+        # Create a new socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            # Attempt to connect. This will be routed through the Tailscale proxy.
+            s.connect((host, port))
+        
+        flash(f"✅ Success! A connection was established to {host} on port {port}.")
+
+    except socket.timeout:
+        flash(f"❌ Failed: Connection to {host} on port {port} timed out after {timeout} seconds.")
+    except ConnectionRefusedError:
+        flash(f"❌ Failed: Connection to {host} on port {port} was refused. The host is reachable, but the port is closed.")
+    except Exception as e:
+        flash(f"❌ Failed: An unexpected error occurred while connecting to {host} on port {port}.\nError: {e}")
+
     return redirect(url_for('index'))
 
 @app.route("/netinfo", methods=["POST"])
