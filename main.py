@@ -3,33 +3,40 @@ import subprocess
 from flask import Flask, render_template_string, redirect, url_for, flash
 
 app = Flask(__name__)
-# It's good practice to set a secret key for flashing messages
 app.secret_key = os.urandom(24)
 
-# Use an HTML template string for the user interface
+# Updated HTML template with two buttons for the new functions
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Run App</title>
+    <title>Network Tools</title>
     <style>
         body { font-family: sans-serif; background-color: #f4f4f9; color: #333; text-align: center; margin-top: 50px; }
         .container { background: white; padding: 2rem; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .buttons form { display: inline-block; margin: 0 10px; }
         button { background-color: #007bff; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; }
         button:hover { background-color: #0056b3; }
-        pre { background-color: #eee; text-align: left; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        pre { background-color: #eee; text-align: left; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; max-width: 800px; margin: auto;}
         .message { margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Hello, Cloud Run! 🚀</h1>
-        <p>Press the button to ping a device on your Tailnet.</p>
-        <form action="/ping" method="post">
-            <button type="submit">Ping 192.168.1.66</button>
-        </form>
+        <h1>Network Diagnostic Tools 🛠️</h1>
+        <p>Run network tools inside the container.</p>
+        <div class="buttons">
+            <form action="/traceroute" method="post">
+                <button type="submit">Traceroute to 192.168.1.66</button>
+            </form>
+            <form action="/netinfo" method="post">
+                <button type="submit" class="secondary">Show Network Config</button>
+            </form>
+        </div>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -45,42 +52,48 @@ HTML_TEMPLATE = """
 </html>
 """
 
-@app.route("/")
-def hello_world():
-    """Renders the main page with the button."""
-    return render_template_string(HTML_TEMPLATE)
-
-@app.route("/ping", methods=["POST"])
-def ping_host():
-    """Handles the button press, executes the ping, and shows the result."""
-    ip_address = "192.168.1.66"
-    
-    # The command uses '-c 4' to send 4 packets, which is standard for Linux.
-    command = ["ping", "-c", "4", ip_address]
-    
+def run_command(command):
+    """Helper function to run a shell command and return its output."""
     try:
-        # Execute the ping command
         result = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            timeout=10 # Add a timeout to prevent it from hanging
+            timeout=30  # Increased timeout for potentially long commands
         )
-        
-        # Combine stdout and stderr for the full output
-        output = result.stdout + result.stderr
-        
-        if result.returncode == 0:
-            flash(f"✅ Ping successful to {ip_address}:\n\n{output}")
-        else:
-            flash(f"❌ Ping failed to {ip_address}:\n\n{output}")
-            
+        return result.stdout + result.stderr
     except subprocess.TimeoutExpired:
-        flash(f"⌛️ Ping timed out. The host {ip_address} is unreachable.")
+        return f"⌛️ Command '{' '.join(command)}' timed out."
     except Exception as e:
-        flash(f"An error occurred: {e}")
+        return f"An error occurred: {e}"
 
-    return redirect(url_for('hello_world'))
+@app.route("/")
+def index():
+    """Renders the main page with the buttons."""
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route("/traceroute", methods=["POST"])
+def traceroute_host():
+    """Handles the traceroute button press."""
+    ip_address = "192.168.1.66"
+    output = run_command(["traceroute", ip_address])
+    flash(f"🔍 Traceroute results for {ip_address}:\n\n{output}")
+    return redirect(url_for('index'))
+
+@app.route("/netinfo", methods=["POST"])
+def network_info():
+    """Handles the network config button press."""
+    ip_addr_output = run_command(["ip", "addr"])
+    ip_route_output = run_command(["ip", "route"])
+    
+    full_output = (
+        "===== IP Addresses =====\n"
+        f"{ip_addr_output}\n"
+        "===== Routing Table =====\n"
+        f"{ip_route_output}"
+    )
+    flash(full_output)
+    return redirect(url_for('index'))
 
 
 if __name__ == "__main__":

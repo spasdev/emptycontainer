@@ -4,10 +4,10 @@ FROM python:3.11-alpine
 # 2. Set the working directory
 WORKDIR /app
 
-# 3. Install system dependencies like ca-certificates [cite: 3]
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+# 3. Install system dependencies including traceroute and iproute2
+RUN apk update && apk add --no-cache ca-certificates traceroute iproute2
 
-# 4. Copy and install Python dependencies [cite: 1]
+# 4. Copy and install Python dependencies
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY start.sh .
 
-# 6. Copy Tailscale binaries from the official image [cite: 5]
+# 6. Copy Tailscale binaries from the official image
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /app/tailscaled
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /app/tailscale
 
