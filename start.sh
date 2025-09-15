@@ -3,7 +3,7 @@
 /app/tailscaled --tun=userspace-networking --socks5-server=localhost:1055 &
 
 # Bring the Tailscale interface up
-/app/tailscale up --authkey=${TAILSCALE_AUTHKEY} --hostname=cloudrun-app
+/app/tailscale up --authkey=${TAILSCALE_AUTHKEY} --hostname=cloudrun-app --accept-routes=true
 echo "Tailscale started"
 
 # Start the Gunicorn server, routing its traffic through the Tailscale SOCKS5 proxy
