@@ -14,4 +14,4 @@ COPY . .
 
 # Set the command to run the application using Gunicorn
 # This command uses the PORT environment variable provided by Cloud Run
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "main:app"]
+CMD gunicorn --bind 0.0.0.0:$PORT main:app
