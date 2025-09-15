@@ -1,3 +1,5 @@
+
+
 # Use an official lightweight Python image
 FROM python:3.11-slim
 
@@ -12,6 +14,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Set the command to run the application using Gunicorn
-# This command uses the PORT environment variable provided by Cloud Run
-CMD gunicorn --bind 0.0.0.0:$PORT main:app
+
+FROM alpine:latest
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+
+# Copy binary to production image.
+COPY --from=builder /app/start.sh /app/start.sh
+
+# Copy Tailscale binaries from the tailscale image on Docker Hub.
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /app/tailscaled
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /app/tailscale
+RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
+
+# CMD gunicorn --bind 0.0.0.0:$PORT main:app
+CMD ["/app/start.sh"]
