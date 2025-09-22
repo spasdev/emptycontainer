@@ -6,7 +6,7 @@ from flask import Flask, render_template_string, redirect, url_for, flash
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Updated HTML template with the new "Generate Bug Report" button
+# HTML template remains the same
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -114,9 +114,9 @@ def ts_config():
     
 @app.route("/bugreport", methods=["POST"])
 def bug_report():
-    """Generates a Tailscale bug report for diagnostics."""
+    """Generates a Tailscale bug report with diagnostics."""
     # Bug reports can take longer to generate, so we use a longer timeout.
-    report_output = run_command(["/app/tailscale", "bugreport"], timeout=60)
+    report_output = run_command(["/app/tailscale", "bugreport", "--diagnose"], timeout=60)
     flash(f"===== Tailscale Bug Report 🐛 =====\n\n{report_output}")
     return redirect(url_for('index'))
 
