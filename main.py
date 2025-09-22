@@ -6,7 +6,7 @@ from flask import Flask, render_template_string, redirect, url_for, flash
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Updated HTML template with the new config test button
+# Updated HTML template with the new "Generate Bug Report" button
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -41,6 +41,9 @@ HTML_TEMPLATE = """
             <form action="/ts-config" method="post">
                 <button type="submit" class="info">Check Tailscale Config</button>
             </form>
+            <form action="/bugreport" method="post">
+                <button type="submit" class="secondary">Generate Bug Report</button>
+            </form>
             <form action="/debug" method="post">
                 <button type="submit" class="danger">Run Debug Evaluation</button>
             </form>
@@ -60,14 +63,14 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def run_command(command):
+def run_command(command, timeout=30):
     """Helper function to run a shell command and return its output."""
     try:
         result = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=timeout
         )
         return result.stdout.strip() + "\n" + result.stderr.strip()
     except subprocess.TimeoutExpired:
@@ -100,7 +103,6 @@ def ts_config():
     """Checks the live Tailscale configuration and peer status."""
     prefs = run_command(["/app/tailscale", "debug", "prefs"])
     status = run_command(["/app/tailscale", "status"])
-    
     report = (
         "===== Live Client Preferences =====\n"
         f"{prefs}\n\n"
@@ -108,6 +110,14 @@ def ts_config():
         f"{status}"
     )
     flash(report)
+    return redirect(url_for('index'))
+    
+@app.route("/bugreport", methods=["POST"])
+def bug_report():
+    """Generates a Tailscale bug report for diagnostics."""
+    # Bug reports can take longer to generate, so we use a longer timeout.
+    report_output = run_command(["/app/tailscale", "bugreport"], timeout=60)
+    flash(f"===== Tailscale Bug Report 🐛 =====\n\n{report_output}")
     return redirect(url_for('index'))
 
 @app.route("/debug", methods=["POST"])
