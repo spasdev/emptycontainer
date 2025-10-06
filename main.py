@@ -102,31 +102,27 @@ def reachability_test():
     host = "192.168.1.66"
     port = 80
     timeout = 5
-    
-    proxy_info = os.environ.get("ALL_PROXY")
-    
+
+    # Explicitly define the proxy to match the one used in run_command and start.sh
+    proxy_host = "localhost"
+    proxy_port = 1055
+    proxy_address_for_display = f"socks5://{proxy_host}:{proxy_port}"
+
     try:
-        if socks and proxy_info and proxy_info.startswith("socks5://"):
-            # Using SOCKS5 proxy
-            _, rest = proxy_info.split("://")
-            proxy_host, proxy_port_str = rest.split(":")
-            proxy_port = int(proxy_port_str.strip('/'))
-            
+        if socks:
+            # Using SOCKS5 proxy via PySocks
             flash(f"Attempting TCP connection to {host}:{port} via SOCKS5 proxy at {proxy_host}:{proxy_port}...")
-            
+
             s = socks.socksocket()
             s.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
             s.settimeout(timeout)
-            flash(f"Socket details: {s}\nProxy Config: ALL_PROXY={proxy_info}")
+            flash(f"Socket details: {s}\nProxy Config: Using explicit proxy at {proxy_address_for_display}")
             s.connect((host, port))
             s.close()
             flash(f"✅ Success! A connection was established to {host} on port {port} via the proxy.")
         else:
-            # Direct connection (fallback)
-            flash(f"Attempting direct TCP connection to {host}:{port} with a {timeout}s timeout... (PySocks not found or ALL_PROXY not set)")
-            with socket.create_connection((host, port), timeout=timeout) as s:
-                 flash(f"Socket details: {s}")
-            flash(f"✅ Success! A direct connection was established to {host} on port {port}.")
+            # Fallback if PySocks is not installed
+            flash("❌ PySocks library not found. Cannot perform reachability test through the SOCKS5 proxy.")
     except Exception as e:
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
     return redirect(url_for('index'))
