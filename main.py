@@ -71,11 +71,16 @@ HTML_TEMPLATE = """
 def run_command(command, timeout=30):
     """Helper function to run a shell command and return its output."""
     try:
+        # Explicitly pass the environment to ensure ALL_PROXY is respected.
+        env = os.environ.copy()
+        # Forcefully set ALL_PROXY for the subprocess, using the port from start.sh
+        env["ALL_PROXY"] = "socks5://localhost:1055"
         result = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
+            env=env
         )
         return result.stdout.strip() + "\n" + result.stderr.strip()
     except subprocess.TimeoutExpired:
