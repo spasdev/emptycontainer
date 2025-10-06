@@ -44,7 +44,7 @@ HTML_TEMPLATE = """
                 <button type="submit">Test App Reachability to 100.110.229.1</button>
             </form>
             <form action="/ts-ping" method="post">
-                <button type="submit" class="warning">Tailscale Ping 100.110.229.1</button>
+                <button type="submit" class="warning">Tailscale Ping 192.168.1.66</button>
             </form>
             <form action="/ts-config" method="post">
                 <button type="submit" class="info">Check Tailscale Config</button>
@@ -123,7 +123,7 @@ def reachability_test():
 @app.route("/ts-ping", methods=["POST"])
 def ts_ping():
     """Pings a specific IP using Tailscale's built-in ping."""
-    ip_to_ping = "100.110.229.1"
+    ip_to_ping = "192.168.1.66"
     # Tailscale ping sends 3 pings by default.
     ping_output = run_command(["/app/tailscale", "ping", ip_to_ping], timeout=15)
     flash(f"===== Tailscale Ping to {ip_to_ping} 🏓 =====\n\n{ping_output}")
