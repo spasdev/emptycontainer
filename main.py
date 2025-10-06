@@ -41,7 +41,10 @@ HTML_TEMPLATE = """
         <p>Run network tools inside the container.</p>
         <div class="buttons">
             <form action="/reachability-test" method="post">
-                <button type="submit">Test App Reachability to 192.168.1.66</button>
+                <button type="submit">Test App Reachability to 100.110.229.1</button>
+            </form>
+            <form action="/ping-test" method="post">
+                <button type="submit">Ping 192.168.1.66</button>
             </form>
             <form action="/ts-config" method="post">
                 <button type="submit" class="info">Check Tailscale Config</button>
@@ -115,6 +118,16 @@ def reachability_test():
         flash(f"✅ Success! A connection was established to {host} on port {port} via the proxy.")
     except Exception as e:
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
+    return redirect(url_for('index'))
+
+@app.route("/ping-test", methods=["POST"])
+def ping_test():
+    """Pings a target host to check ICMP connectivity."""
+    host = "192.168.1.66"
+    flash(f"Pinging {host} (4 packets)...")
+    # The 'ping' command requires the container to have it installed (e.g., via 'iputils-ping').
+    ping_output = run_command(["ping", "-c", "4", host])
+    flash(f"===== Ping Results for {host} =====\n\n{ping_output}")
     return redirect(url_for('index'))
 
 @app.route("/ts-config", methods=["POST"])
