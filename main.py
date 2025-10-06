@@ -86,8 +86,8 @@ def index():
 @app.route("/reachability-test", methods=["POST"])
 def reachability_test():
     """Attempts a TCP connection from the app to a target host and port."""
-    host = "192.168.1.66"
-    port = 80
+    host = "100.110.229.1"
+    port = 7070
     timeout = 5
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
