@@ -2,7 +2,10 @@ import os
 import subprocess
 import socket
 from flask import Flask, render_template_string, redirect, url_for, flash
-
+try:
+    import socks
+except ImportError:
+    socks = None # PySocks is optional, handle case where it's not installed
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
@@ -99,13 +102,31 @@ def reachability_test():
     host = "192.168.1.66"
     port = 80
     timeout = 5
+    
+    proxy_info = os.environ.get("ALL_PROXY")
+    
     try:
-        flash(f"Attempting TCP connection to {host}:{port} with a {timeout}s timeout...")
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if socks and proxy_info and proxy_info.startswith("socks5://"):
+            # Using SOCKS5 proxy
+            _, rest = proxy_info.split("://")
+            proxy_host, proxy_port_str = rest.split(":")
+            proxy_port = int(proxy_port_str.strip('/'))
+            
+            flash(f"Attempting TCP connection to {host}:{port} via SOCKS5 proxy at {proxy_host}:{proxy_port}...")
+            
+            s = socks.socksocket()
+            s.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
             s.settimeout(timeout)
-            flash(f"Socket details: {s}")
+            flash(f"Socket details: {s}\nProxy Config: ALL_PROXY={proxy_info}")
             s.connect((host, port))
-        flash(f"✅ Success! A connection was established to {host} on port {port}.")
+            s.close()
+            flash(f"✅ Success! A connection was established to {host} on port {port} via the proxy.")
+        else:
+            # Direct connection (fallback)
+            flash(f"Attempting direct TCP connection to {host}:{port} with a {timeout}s timeout... (PySocks not found or ALL_PROXY not set)")
+            with socket.create_connection((host, port), timeout=timeout) as s:
+                 flash(f"Socket details: {s}")
+            flash(f"✅ Success! A direct connection was established to {host} on port {port}.")
     except Exception as e:
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
     return redirect(url_for('index'))
