@@ -24,6 +24,8 @@ HTML_TEMPLATE = """
         button.secondary:hover { background-color: #5a6268; }
         button.info { background-color: #17a2b8; }
         button.info:hover { background-color: #138496; }
+        button.warning { background-color: #ffc107; color: #212529; }
+        button.warning:hover { background-color: #e0a800; }
         button.danger { background-color: #dc3545; }
         button.danger:hover { background-color: #c82333; }
         pre { background-color: #eee; text-align: left; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; max-width: 800px; margin: auto;}
@@ -37,6 +39,9 @@ HTML_TEMPLATE = """
         <div class="buttons">
             <form action="/reachability-test" method="post">
                 <button type="submit">Test App Reachability to 192.168.1.66</button>
+            </form>
+            <form action="/ts-ping" method="post">
+                <button type="submit" class="warning">Tailscale Ping 100.110.229.1</button>
             </form>
             <form action="/ts-config" method="post">
                 <button type="submit" class="info">Check Tailscale Config</button>
@@ -96,6 +101,15 @@ def reachability_test():
         flash(f"✅ Success! A connection was established to {host} on port {port}.")
     except Exception as e:
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
+    return redirect(url_for('index'))
+
+@app.route("/ts-ping", methods=["POST"])
+def ts_ping():
+    """Pings a specific IP using Tailscale's built-in ping."""
+    ip_to_ping = "100.110.229.1"
+    # Tailscale ping sends 3 pings by default.
+    ping_output = run_command(["/app/tailscale", "ping", ip_to_ping], timeout=15)
+    flash(f"===== Tailscale Ping to {ip_to_ping} 🏓 =====\n\n{ping_output}")
     return redirect(url_for('index'))
 
 @app.route("/ts-config", methods=["POST"])
