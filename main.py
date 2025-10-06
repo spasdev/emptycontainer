@@ -43,8 +43,8 @@ HTML_TEMPLATE = """
             <form action="/reachability-test" method="post">
                 <button type="submit">Test App Reachability to 100.110.229.1</button>
             </form>
-            <form action="/ping-test" method="post">
-                <button type="submit">Ping 192.168.1.66</button>
+            <form action="/ts-ping" method="post">
+                <button type="submit" class="warning">Tailscale Ping 100.110.229.1</button>
             </form>
             <form action="/ts-config" method="post">
                 <button type="submit" class="info">Check Tailscale Config</button>
@@ -120,14 +120,13 @@ def reachability_test():
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
     return redirect(url_for('index'))
 
-@app.route("/ping-test", methods=["POST"])
-def ping_test():
-    """Pings a target host to check ICMP connectivity."""
-    host = "100.110.229.1"
-    flash(f"Pinging {host} (4 packets)...")
-    # The 'ping' command requires the container to have it installed (e.g., via 'iputils-ping').
-    ping_output = run_command(["ping", "-c", "4", host])
-    flash(f"===== Ping Results for {host} =====\n\n{ping_output}")
+@app.route("/ts-ping", methods=["POST"])
+def ts_ping():
+    """Pings a specific IP using Tailscale's built-in ping."""
+    ip_to_ping = "100.110.229.1"
+    # Tailscale ping sends 3 pings by default.
+    ping_output = run_command(["/app/tailscale", "ping", ip_to_ping], timeout=15)
+    flash(f"===== Tailscale Ping to {ip_to_ping} 🏓 =====\n\n{ping_output}")
     return redirect(url_for('index'))
 
 @app.route("/ts-config", methods=["POST"])
