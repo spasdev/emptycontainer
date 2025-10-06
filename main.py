@@ -3,6 +3,11 @@ import subprocess
 import socket
 from flask import Flask, render_template_string, redirect, url_for, flash
 
+try:
+    import socks
+except ImportError:
+    socks = None # PySocks is optional, handle case where it's not installed
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
@@ -86,14 +91,28 @@ def index():
 @app.route("/reachability-test", methods=["POST"])
 def reachability_test():
     """Attempts a TCP connection from the app to a target host and port."""
-    host = "100.110.229.1"
-    port = 7070
+    host = "100.110.229.1" # Example Tailscale IP
+    port = 7070 # Example port
     timeout = 5
+
+    # Explicitly define the proxy to match the one used in start.sh
+    proxy_host = "localhost"
+    proxy_port = 1055
+
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if not socks:
+            raise ImportError("PySocks library not found. Cannot perform reachability test.")
+
+        flash(f"Attempting TCP connection to {host}:{port} via SOCKS5 proxy at {proxy_host}:{proxy_port}...")
+        
+        # Set the default proxy for all subsequent socket operations
+        socks.set_default_proxy(socks.SOCKS5, proxy_host, proxy_port)
+        
+        # Create a socket object that will automatically use the default proxy
+        with socks.socksocket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             s.connect((host, port))
-        flash(f"✅ Success! A connection was established to {host} on port {port}.")
+        flash(f"✅ Success! A connection was established to {host} on port {port} via the proxy.")
     except Exception as e:
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
     return redirect(url_for('index'))
