@@ -2,14 +2,11 @@ import os
 import subprocess
 import socket
 from flask import Flask, render_template_string, redirect, url_for, flash
-try:
-    import socks
-except ImportError:
-    socks = None # PySocks is optional, handle case where it's not installed
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# HTML template remains the same
+# Updated HTML template with the new "Generate Bug Report" button
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -27,8 +24,6 @@ HTML_TEMPLATE = """
         button.secondary:hover { background-color: #5a6268; }
         button.info { background-color: #17a2b8; }
         button.info:hover { background-color: #138496; }
-        button.warning { background-color: #ffc107; color: #212529; }
-        button.warning:hover { background-color: #e0a800; }
         button.danger { background-color: #dc3545; }
         button.danger:hover { background-color: #c82333; }
         pre { background-color: #eee; text-align: left; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; max-width: 800px; margin: auto;}
@@ -42,9 +37,6 @@ HTML_TEMPLATE = """
         <div class="buttons">
             <form action="/reachability-test" method="post">
                 <button type="submit">Test App Reachability to 192.168.1.66</button>
-            </form>
-            <form action="/ts-ping" method="post">
-                <button type="submit" class="warning">Tailscale Ping 100.110.229.1</button>
             </form>
             <form action="/ts-config" method="post">
                 <button type="submit" class="info">Check Tailscale Config</button>
@@ -74,16 +66,11 @@ HTML_TEMPLATE = """
 def run_command(command, timeout=30):
     """Helper function to run a shell command and return its output."""
     try:
-        # Explicitly pass the environment to ensure ALL_PROXY is respected.
-        env = os.environ.copy()
-        # Forcefully set ALL_PROXY for the subprocess, using the port from start.sh
-        env["ALL_PROXY"] = "socks5://localhost:1055"
         result = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            timeout=timeout,
-            env=env
+            timeout=timeout
         )
         return result.stdout.strip() + "\n" + result.stderr.strip()
     except subprocess.TimeoutExpired:
@@ -102,38 +89,13 @@ def reachability_test():
     host = "192.168.1.66"
     port = 80
     timeout = 5
-
-    # Explicitly define the proxy to match the one used in run_command and start.sh
-    proxy_host = "localhost"
-    proxy_port = 1055
-    proxy_address_for_display = f"socks5://{proxy_host}:{proxy_port}"
-
     try:
-        if socks:
-            # Using SOCKS5 proxy via PySocks
-            flash(f"Attempting TCP connection to {host}:{port} via SOCKS5 proxy at {proxy_host}:{proxy_port}...")
-
-            s = socks.socksocket()
-            s.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
-            flash(f"Socket details: {s}\nProxy Config: Using explicit proxy at {proxy_address_for_display}")
             s.connect((host, port))
-            s.close()
-            flash(f"✅ Success! A connection was established to {host} on port {port} via the proxy.")
-        else:
-            # Fallback if PySocks is not installed
-            flash("❌ PySocks library not found. Cannot perform reachability test through the SOCKS5 proxy.")
+        flash(f"✅ Success! A connection was established to {host} on port {port}.")
     except Exception as e:
         flash(f"❌ Failed to connect to {host} on port {port}.\nError: {e}")
-    return redirect(url_for('index'))
-
-@app.route("/ts-ping", methods=["POST"])
-def ts_ping():
-    """Pings a specific IP using Tailscale's built-in ping."""
-    ip_to_ping = "100.110.229.1"
-    # Tailscale ping sends 3 pings by default.
-    ping_output = run_command(["/app/tailscale", "ping", ip_to_ping], timeout=15)
-    flash(f"===== Tailscale Ping to {ip_to_ping} 🏓 =====\n\n{ping_output}")
     return redirect(url_for('index'))
 
 @app.route("/ts-config", methods=["POST"])
@@ -152,9 +114,9 @@ def ts_config():
     
 @app.route("/bugreport", methods=["POST"])
 def bug_report():
-    """Generates a Tailscale bug report with diagnostics."""
+    """Generates a Tailscale bug report for diagnostics."""
     # Bug reports can take longer to generate, so we use a longer timeout.
-    report_output = run_command(["/app/tailscale", "bugreport", "--diagnose"], timeout=60)
+    report_output = run_command(["/app/tailscale", "bugreport"], timeout=60)
     flash(f"===== Tailscale Bug Report 🐛 =====\n\n{report_output}")
     return redirect(url_for('index'))
 
