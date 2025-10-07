@@ -99,7 +99,7 @@ def reachability_test():
     timeout = 10
 
     # Explicitly define the proxy to match the one used in start.sh
-    proxy_host = "localhost"
+    proxy_host = "127.0.0.1"
     proxy_port = 1055
 
     try:
