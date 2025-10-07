@@ -96,7 +96,7 @@ def reachability_test():
     """Attempts a TCP connection from the app to a target host and port."""
     host = "100.110.229.1" # Example Tailscale IP
     port = 7070 # Example port
-    timeout = 5
+    timeout = 10
 
     # Explicitly define the proxy to match the one used in start.sh
     proxy_host = "localhost"
